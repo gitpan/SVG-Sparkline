@@ -6,7 +6,7 @@ use Carp;
 use SVG;
 
 use 5.008000;
-our $VERSION = '0.1.0';
+our $VERSION = '0.1.1';
 
 sub new
 {
@@ -17,7 +17,6 @@ sub new
     croak "Unrecognized Sparkline type '$type'.\n" if $@;
     croak "Missing arguments hash.\n" unless defined $args;
     croak "Arguments not supplied as a hash reference.\n" unless 'HASH' eq ref $args;
-    croak "Missing required 'y' argument.\n" unless exists $args->{y} and defined $args->{y};
 
     my $self = bless {
         height => 10,
@@ -61,13 +60,13 @@ SVG::Sparkline - Create Sparklines in SVG
 
 =head1 VERSION
 
-This document describes SVG::Sparkline version 0.1.0
+This document describes SVG::Sparkline version 0.1.1
 
 =head1 SYNOPSIS
 
     use SVG::Sparkline;
 
-    my $sl1 = SVG::Sparkline->new( 'Whisker', { y=>\@values, color=>'#eee', height=>12 } );
+    my $sl1 = SVG::Sparkline->new( 'Whisker', { values=>\@values, color=>'#eee', height=>12 } );
     print $sl1->to_string();
 
     my $sl2 = SVG::Sparkline->new( 'Line', { y=>\@values, x=>\@x, color=>'blue', height=>12 } );
@@ -76,7 +75,7 @@ This document describes SVG::Sparkline version 0.1.0
     my $sl3 = SVG::Sparkline->new( 'Area', { y=>\@values, x=>\@x, color=>'green', height=>10 } );
     print $sl3->to_string();
 
-    my $sl4 = SVG::Sparkline->new( 'Bar', { y=>\@values, color=>'#66f', height=>10 } );
+    my $sl4 = SVG::Sparkline->new( 'Bar', { values=>\@values, color=>'#66f', height=>10 } );
     print $sl4->to_string();
   
 =head1 DESCRIPTION
@@ -96,10 +95,46 @@ Although the basics are there, this module is not yet feature complete.
 =head2 CVG::Sparkline->new( $type, $args_hr )
 
 Create a new L<SVG::Sparkline> object of the specified type, using the
-parameters in the C<$args_hr> hash reference.
+parameters in the C<$args_hr> hash reference. There are two groups of
+parameters. Parameters that start with a B<-> character control the
+L<SVG::Sparkline> object. Parameters that do not start with B<-> are used
+in attributes in the sparkline itself.
 
-The parameters passed in C<$args_hr> depend somewhat on the C<$type>.
-However, some are common.
+=head3 Configuration Parameters
+
+Configuration parameters are independent of the type of sparkline being
+generated.
+
+=over 4
+
+=item -nodecl
+
+The value of this parameter is a boolean that specifies whether the XML
+declaration statement is to be removed from the generated SVG.
+
+If you are embedding the SVG content directly in another document (maybe
+HTML), you should pass this parameter with a 1. If you are generating a
+standalone sparkline document, you should pass a 0.
+
+The I<-nodecl> parameter defaults to 0.
+
+=item -allns
+
+The value of this parameter is a boolean that specifies whether to supply
+all potential namespace attributes relating to SVG.
+
+If the value of the parameter is 0 or the parameter is not supplied, only
+the default SVG namespace is included in the sparkline.
+
+If the value of the parameter is 1, a namespace is supplied for the prefix
+I<svg> and the prefix I<xlink>.
+
+=back
+
+=head3 Attribute Parameters
+
+The attribute parameters passed in C<$args_hr> depend somewhat on the
+C<$type>. However, some are common.
 
 =over 4
 
@@ -126,9 +161,9 @@ for I<x> and I<y> must be the same.
 
 =item y
 
-This required parameter specifies the y-coordinates of the data set to
-display. Although all sparkline types accept a reference to an array of
-numbers, the I<Whisker> type supports other options.
+This parameter is required for I<Line> and I<Whisker> sparklines and
+specifies the y-coordinates of the data set to display. The value of this
+parameter is an array of numbers.
 
 =item color
 
@@ -180,11 +215,11 @@ require any I<x> values.
 
 =over 4
 
-=item y
+=item values
 
-The I<y> parameter is required for the I<Bar> sparkline type. The value must
-be a reference to an array of numeric values, specifying the height of the
-corresponding bar.
+The I<values> parameter is required for the I<Bar> sparkline type. The
+value must be a reference to an array of numeric values, specifying the
+height of the corresponding bar.
 
 =item thick
 
@@ -197,7 +232,7 @@ is 3.
 
 This optional parameter specifies the width of the sparkline in pixels. If
 the I<width> is not specified, the width of the sparkline is the value of
-I<thick> times the number of I<y> values.
+I<thick> times the number of I<values>.
 
 =item color
 
@@ -252,10 +287,10 @@ where no tick is displayed.
 
 =over 4
 
-=item y
+=item values
 
-The I<y> parameter is required for the I<Whisker> sparkline type. The value
-can be one of three things:
+The I<values> parameter is required for the I<Whisker> sparkline type.
+The value can be one of three things:
 
 =over 4
 
@@ -265,7 +300,7 @@ Where '+' means an uptick, '-' is a down tick, and 0 is no tick.
 
 =item string of '1' or '0'.
 
-Where '1' means an uptick, and '0' means no tick.
+Where '1' means an uptick, and '0' means a downtick.
 
 =item reference to an array of numbers
 
@@ -278,7 +313,7 @@ and zero is no tick.
 
 This optional parameter specifies the width of the sparkline in pixels. If
 the I<width> is not specified, the width of the sparkline is the value of
-I<thick> times 3 times the number of I<y> values.
+I<thick> times 3 times the number of I<values>.
 
 =item thick
 
@@ -302,26 +337,8 @@ Convert the L<SVG::Sparkline> object to an XML string.
 
 =head1 DIAGNOSTICS
 
-=for author to fill in:
-    List every single error and warning message that the module can
-    generate (even the ones that will "never happen"), with a full
-    explanation of each problem, one or more likely causes, and any
-    suggested remedies.
-
-=over
-
-=item C<< Error message here, perhaps with %s placeholders >>
-
-[Description of error here]
-
-=item C<< Another error message here >>
-
-[Description of error here]
-
-[Et cetera, et cetera]
-
-=back
-
+Diagnostic message for the various types are documented in the appropriate
+F<SVG::Sparkline::*> module.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 

@@ -7,7 +7,7 @@ use SVG;
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.1.0';
+our $VERSION = '0.1.1';
 
 # alias to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
@@ -17,20 +17,25 @@ sub make
     my ($class, $args) = @_;
     # validate parameters
     my @values;
-    if( 'ARRAY' eq ref $args->{y} )
+    croak "Missing required 'values'\n" unless exists $args->{values};
+    if( 'ARRAY' eq ref $args->{values} )
     {
-        @values =  @{$args->{y}};
+        @values =  @{$args->{values}};
     }
-    elsif( !ref $args->{y} )
+    elsif( !ref $args->{values} )
     {
-        @values = split //, $args->{y};
+        my $valstr = $args->{values};
+        # Convert 1/0 string to a +/- string.
+        $valstr =~ tr/10/+-/ if $valstr =~ /1/;
+
+        @values = split //, $valstr;
     }
     else
     {
-        croak "Unrecognized type of 'y' data.\n";
+        croak "Unrecognized type of 'values' data.\n";
     }
     @values =  map { _val( $_ ) } @values;
-    croak "No values specified for 'y'.\n" unless @values;
+    croak "No values specified for 'values'.\n" unless @values;
 
     # Figure out the width I want and define the viewBox
     my $thick = 1;
@@ -72,10 +77,10 @@ sub make
 
 sub _val
 {
-    my $y = shift;
+    my $val = shift;
 
-    return $y <=> 0 if $y =~ /\d/;
-    return $y eq '+' ? 1 : ( $y eq '-' ? -1 : 0 );
+    return $val <=> 0 if $val =~ /\d/;
+    return $val eq '+' ? 1 : ( $val eq '-' ? -1 : 0 );
 }
 
 
@@ -88,7 +93,7 @@ SVG::Sparkline::Whisker - Supports SVG::Sparkline for whisker graphs.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Whisker version 0.1.0
+This document describes SVG::Sparkline::Whisker version 0.1.1
 
 =head1 DESCRIPTION
 
@@ -105,14 +110,18 @@ Create an L<SVG> object that represents the Whisker style of Sparkline.
 
 =over 4
 
-=item C<< Unrecognized type of 'y' data. >>
+=item C<< Missing required '%s' parameter. >>
 
-The I<y> parameter only supports strings of {'-','+','0'}, {'0','1'}, or
+The named parameter is not supplied.
+
+=item C<< Unrecognized type of 'values' data. >>
+
+The I<values> parameter only supports strings of {'-','+','0'}, {'0','1'}, or
 a reference to an array of numbers.
 
-=item C<< No values specified for 'y'. >>
+=item C<< No values specified for 'values'. >>
 
-An empty array was supplied for the I<y> parameter.
+An empty array was supplied for the I<values> parameter.
 
 =back
 
