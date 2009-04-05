@@ -6,7 +6,7 @@ use Carp;
 use List::Util;
 use SVG;
 
-our $VERSION = '0.1.0';
+our $VERSION = '0.2.0';
 
 sub format_f
 {
@@ -24,9 +24,56 @@ sub summarize_values
         min => List::Util::min( @{$array} ),
         max => List::Util::max( @{$array} ),
     };
+    
+    $desc->{min} = 0 if $desc->{min} > 0;
+    $desc->{max} = 0 if $desc->{max} < 0;
 
     $desc->{range} = $desc->{max}-$desc->{min};
     push @{$desc->{vals}}, $_-$desc->{min} foreach @{$array};
+    return $desc;
+}
+
+sub summarize_xy_values
+{
+    my ($array) = @_;
+    return summarize_xy_pairs( $array ) if 'ARRAY' eq ref $array->[0];
+    my $desc = {
+        ymin => List::Util::min( @{$array} ),
+        ymax => List::Util::max( @{$array} ),
+        xmin => 0,
+        xmax => $#{$array},
+        xrange => $#{$array},
+    };
+
+    $desc->{yrange} = $desc->{ymax}-$desc->{ymin};
+    my $i = 0;
+    $desc->{vals} = [map { [$i++,$_-$desc->{ymin}] } @{$array}];
+    return $desc;
+}
+
+sub summarize_xy_pairs 
+{
+    my ($array) = @_;
+    my $desc = {
+        xmin => $array->[0]->[0],
+        xmax => $array->[-1]->[0],
+        ymin => $array->[0]->[1],
+        ymax => $array->[0]->[1],
+    };
+
+    foreach my $p ( @{$array} )
+    {
+        die "Array element is not a pair.\n"
+            unless 'ARRAY' eq ref $p && 2 == @{$p};
+        $desc->{xmin} = $p->[0] if $p->[0] < $desc->{xmin};
+        $desc->{xmax} = $p->[0] if $p->[0] > $desc->{xmax};
+        $desc->{ymin} = $p->[1] if $p->[1] < $desc->{ymin};
+        $desc->{ymax} = $p->[1] if $p->[1] > $desc->{ymax};
+    }
+    $desc->{xrange} = $desc->{xmax}-$desc->{xmin};
+    $desc->{yrange} = $desc->{ymax}-$desc->{ymin};
+    $desc->{vals} =
+        [map { [$_->[0]-$desc->{xmin},$_->[1]-$desc->{ymin}] } @{$array}];
     return $desc;
 }
 
@@ -36,6 +83,17 @@ sub make_svg
         -inline=>1, -nocredits=>1, -raiseerror=>1, -indent=>'', -elsep=>'',
         @_
     );
+}
+
+sub add_bgcolor
+{
+    my ($svg, $offset, $args) = @_;
+    return unless exists $args->{'-bgcolor'};
+    $svg->rect(
+        x => -1, y => $offset-1, width => $args->{width}+2, height => $args->{height}+2,
+        stroke => 'none', fill => $args->{'-bgcolor'}
+    );
+    return;
 }
 
 sub validate_array_param
@@ -57,7 +115,7 @@ SVG::Sparkline::Utils - Utility functions used by the sparkline type modules.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Utils version 0.1.0
+This document describes SVG::Sparkline::Utils version 0.2.0
 
 =head1 DESCRIPTION
 
@@ -77,11 +135,17 @@ the decimal place are removed.
 Create the SVG object with the proper base parameters for a sparkline. Apply
 the supplied parameters as well.
 
+=head2 add_bgcolor
+
 =head2 summarize_values
 
 Given a list of numeric values generate a structured summary simplifying
 changes for later. Calculate I<min>, I<max>, I<range>, and generate a
 list of all values after subtracting the I<min>.
+
+=head2 summarize_xy_values
+
+=head2 summarize_xy_pairs
 
 =head2 validate_array_param
 

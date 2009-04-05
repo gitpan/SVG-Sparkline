@@ -7,39 +7,32 @@ use SVG;
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.1.1';
+our $VERSION = '0.2.0';
 
 # aliases to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
-*_vals = *SVG::Sparkline::Utils::summarize_values;
 
 sub make
 {
     my ($class, $args) = @_;
     # validate parameters
-    SVG::Sparkline::Utils::validate_array_param( $args, 'y' );
-    SVG::Sparkline::Utils::validate_array_param( $args, 'x' );
-    croak "Count of 'x' and 'y' values must match.\n"
-        unless @{$args->{x}} == @{$args->{y}};
-    croak "Missing required 'width' parameter.\n"
-        if !exists $args->{width} or $args->{width} < 1;
-
-    # Figure out the width I want and define the viewBox
-    my $xvals = _vals( $args->{x} );
-    my $yvals = _vals( $args->{y} );
+    SVG::Sparkline::Utils::validate_array_param( $args, 'values' );
+    my $valdesc = SVG::Sparkline::Utils::summarize_xy_values( $args->{values} );
 
     my $thick = $args->{thick} || 1;
-    my $xscale = $args->{width} / $xvals->{range};
-    my $yscale = -$args->{height} / $yvals->{range};
+    $args->{width} ||= @{$valdesc->{vals}};
+    my $xscale = ($args->{width}-1) / $valdesc->{xrange};
+    my $yscale = -$args->{height} / $valdesc->{yrange};
 
     my $svg = SVG::Sparkline::Utils::make_svg(
         width=>$args->{width}, height=>$args->{height},
         viewBox=> "0 -$args->{height} $args->{width} $args->{height}",
     );
+    SVG::Sparkline::Utils::add_bgcolor( $svg, -$args->{height}, $args );
 
     my $points = join( ' ',
-        map { _f($xscale*$xvals->{vals}->[$_]) .','. _f($yscale*$yvals->{vals}->[$_]) }
-        0 .. $#{$xvals->{vals}}
+        map { _f($xscale*$_->[0]) .','. _f($yscale*$_->[1]) }
+        @{$valdesc->{vals}}
     );
     $svg->polyline( fill=>'none', 'stroke-width'=>$thick, stroke=>$args->{color}, points=>$points );
 
@@ -55,7 +48,7 @@ SVG::Sparkline::Line - Supports SVG::Sparkline for line graphs.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Line version 0.1.1
+This document describes SVG::Sparkline::Line version 0.2.0
 
 =head1 DESCRIPTION
 
