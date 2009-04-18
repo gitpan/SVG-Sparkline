@@ -7,7 +7,7 @@ use SVG;
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.5';
 
 # alias to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
@@ -16,44 +16,86 @@ sub make
 {
     my ($class, $args) = @_;
     # validate parameters
-    my @values;
     SVG::Sparkline::Utils::validate_array_param( $args, 'values' );
     my $vals = SVG::Sparkline::Utils::summarize_values( $args->{values} );
-    my $yscale = -$args->{height} / $vals->{range};
+
+    my $height = $args->{height} - 2*$args->{pady};
+    my $yscale = -$height / $vals->{range};
     my $baseline = _f(-$yscale*$vals->{min});
 
     # Figure out the width I want and define the viewBox
     my $thick = 3;
+    my $dwidth;
     if($args->{width})
     {
-        $thick = _f( $args->{width} / @{$vals->{vals}} );
+        $dwidth = $args->{width} - $args->{padx}*2;
+        $thick = _f( $dwidth / @{$args->{values}} );
     }
     else
     {
-        $args->{width} = @{$vals->{vals}} * $thick;
+        $dwidth = @{$args->{values}} * $thick;
+        $args->{width} = $dwidth + 2*$args->{padx}; 
     }
+    $args->{yoff} = -($baseline+$height+$args->{pady});
+    my $svg = SVG::Sparkline::Utils::make_svg( $args );
 
-    my $svg = SVG::Sparkline::Utils::make_svg(
-        width=>$args->{width}, height=>$args->{height},
-        viewBox=> "0 -$args->{height} $args->{width} $args->{height}",
-    );
-    SVG::Sparkline::Utils::add_bgcolor( $svg, -$args->{height}, $args );
-
-    my $prev = -$vals->{min};
-    my $path = "M0,$baseline";
-    foreach my $v (@{$vals->{vals}})
+    my $prev = 0;
+    my $path = "M0,0";
+    foreach my $v (@{$args->{values}})
     {
         my $curr = _f( $yscale*($v-$prev) );
         $path .= "v$curr" if $curr;
         $path .= "h$thick";
         $prev = $v;
     }
-    $path .= 'v'._f( $yscale*(-$vals->{min}-$prev) ) unless $prev == -$vals->{min};
+    $path .= 'v' . _f( $yscale*(-$prev) ) if $prev;
     $path .= 'z';
     $svg->path( stroke=>'none', fill=>$args->{color}, d=>$path );
 
+    if( exists $args->{mark} )
+    {
+        _make_marks( $svg,
+            thick=>$thick, yscale=>$yscale,
+            values=>$args->{values}, mark=>$args->{mark}
+        );
+    }
     return $svg;
 }
+
+sub _make_marks
+{
+    my ($svg, %args) = @_;
+    
+    my @marks = @{$args{mark}};
+    while(@marks)
+    {
+        my ($index,$color) = splice( @marks, 0, 2 );
+        $index = _check_index( $index, $args{values} );
+        _make_mark( $svg, %args, index=>$index, color=>$color );
+    }
+    return;
+}
+
+sub _make_mark
+{
+    my ($svg, %args) = @_;
+    my $index = $args{index};
+    my $h = _f($args{values}->[$index] * $args{yscale});
+    return unless $h;
+    my $x = _f($index * $args{thick});
+    my $y = $h > 0 ? 0 : $h;
+    $svg->rect( x=>$x, y=>$y,
+        width=>$args{thick}, height=>abs($h),
+        stroke=>'none', fill=>$args{color}
+    );
+    return;
+}
+
+sub _check_index
+{
+    return SVG::Sparkline::Utils::mark_to_index( 'Bar', @_ );
+}
+
 
 1; # Magic true value required at end of module
 __END__
@@ -64,7 +106,7 @@ SVG::Sparkline::Bar - Supports SVG::Sparkline for bar graphs.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Bar version 0.2.0
+This document describes SVG::Sparkline::Bar version 0.2.5
 
 =head1 DESCRIPTION
 

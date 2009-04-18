@@ -6,7 +6,7 @@ use Carp;
 use List::Util;
 use SVG;
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.5';
 
 sub format_f
 {
@@ -29,7 +29,6 @@ sub summarize_values
     $desc->{max} = 0 if $desc->{max} < 0;
 
     $desc->{range} = $desc->{max}-$desc->{min};
-    push @{$desc->{vals}}, $_-$desc->{min} foreach @{$array};
     return $desc;
 }
 
@@ -44,10 +43,14 @@ sub summarize_xy_values
         xmax => $#{$array},
         xrange => $#{$array},
     };
+    $desc->{base}   = 0;
+    $desc->{base}   = $desc->{ymin} if $desc->{ymin} > 0;
+    $desc->{base}   = $desc->{ymax} if $desc->{ymax} < 0;
+    $desc->{offset} = $desc->{ymin} - $desc->{base};
 
     $desc->{yrange} = $desc->{ymax}-$desc->{ymin};
     my $i = 0;
-    $desc->{vals} = [map { [$i++,$_-$desc->{ymin}] } @{$array}];
+    $desc->{vals} = [map { [$i++,$_-$desc->{base}] } @{$array}];
     return $desc;
 }
 
@@ -70,30 +73,36 @@ sub summarize_xy_pairs
         $desc->{ymin} = $p->[1] if $p->[1] < $desc->{ymin};
         $desc->{ymax} = $p->[1] if $p->[1] > $desc->{ymax};
     }
+    $desc->{base}   = 0;
+    $desc->{base}   = $desc->{ymin} if $desc->{ymin} > 0;
+    $desc->{base}   = $desc->{ymax} if $desc->{ymax} < 0;
+    $desc->{offset} = $desc->{ymin} - $desc->{base};
+
     $desc->{xrange} = $desc->{xmax}-$desc->{xmin};
     $desc->{yrange} = $desc->{ymax}-$desc->{ymin};
     $desc->{vals} =
-        [map { [$_->[0]-$desc->{xmin},$_->[1]-$desc->{ymin}] } @{$array}];
+        [map { [$_->[0]-$desc->{xmin},$_->[1]-$desc->{base}] } @{$array}];
     return $desc;
 }
 
 sub make_svg
 {
-    return SVG->new(
+    my ($args) = @_;
+    my $svg = SVG->new(
         -inline=>1, -nocredits=>1, -raiseerror=>1, -indent=>'', -elsep=>'',
-        @_
+        width=>$args->{width}, height=>$args->{height},
+        viewBox=> join( ' ', @{$args}{qw/xoff yoff width height/} )
     );
-}
 
-sub add_bgcolor
-{
-    my ($svg, $offset, $args) = @_;
-    return unless exists $args->{'-bgcolor'};
-    $svg->rect(
-        x => -1, y => $offset-1, width => $args->{width}+2, height => $args->{height}+2,
-        stroke => 'none', fill => $args->{'-bgcolor'}
-    );
-    return;
+    if( exists $args->{bgcolor} )
+    {
+        $svg->rect(
+            x => $args->{xoff}-1, y => $args->{yoff}-1,
+            width => $args->{width}+2, height => $args->{height}+2,
+            stroke => 'none', fill => $args->{bgcolor}
+        );
+    }
+    return $svg;
 }
 
 sub validate_array_param
@@ -106,6 +115,37 @@ sub validate_array_param
     return;
 }
 
+sub mark_to_index
+{
+    my ($type, $index, $values) = @_;
+    return 0 if $index eq 'first';
+    return $#{$values} if $index eq 'last';
+    return $index if $index !~ /\D/ && $index < @{$values};
+    if( 'high' eq $index )
+    {
+        my $high = $values->[0];
+        my $ndx = 0;
+        foreach my $i ( 1 .. $#{$values} )
+        {
+            ($high,$ndx) = ($values->[$i],$i) if $values->[$i] > $high;
+        }
+        return $ndx;
+    }
+    elsif( 'low' eq $index )
+    {
+        my $low = $values->[0];
+        my $ndx = 0;
+        foreach my $i ( 1 .. $#{$values} )
+        {
+            ($low,$ndx) = ($values->[$i],$i) if $values->[$i] < $low;
+        }
+        return $ndx;
+    }
+
+    die "'$index' is not a valid mark for $type sparkline";
+}
+
+
 1; # Magic true value required at end of module
 __END__
 
@@ -115,7 +155,7 @@ SVG::Sparkline::Utils - Utility functions used by the sparkline type modules.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Utils version 0.2.0
+This document describes SVG::Sparkline::Utils version 0.2.5
 
 =head1 DESCRIPTION
 
@@ -135,13 +175,10 @@ the decimal place are removed.
 Create the SVG object with the proper base parameters for a sparkline. Apply
 the supplied parameters as well.
 
-=head2 add_bgcolor
-
 =head2 summarize_values
 
 Given a list of numeric values generate a structured summary simplifying
-changes for later. Calculate I<min>, I<max>, I<range>, and generate a
-list of all values after subtracting the I<min>.
+changes for later. Calculate I<min>, I<max>, and I<range>.
 
 =head2 summarize_xy_values
 
@@ -150,6 +187,11 @@ list of all values after subtracting the I<min>.
 =head2 validate_array_param
 
 Validate an array parameter or throw an exception.
+
+=head2 mark_to_index
+
+Given the sparkline type, a mark index and a reference to an array of values,
+return a numeric index representing C<$index>. Throw an exception on error.
 
 =head1 DIAGNOSTICS
 

@@ -7,7 +7,7 @@ use SVG;
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.2.0';
+our $VERSION = '0.2.5';
 
 # alias to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
@@ -40,23 +40,24 @@ sub make
     # Figure out the width I want and define the viewBox
     my $thick = 1;
     my $space = 3*$thick;
+    my $dwidth;
     if($args->{width})
     {
-        $thick = _f( $args->{width} / (3*@values) );
+        $dwidth = $args->{width} - 2*$args->{padx};
+        $thick = _f( $dwidth / (3*@values) );
         $space = 3*$thick;
     }
     else
     {
-        $args->{width} = @values * $space;
+        $dwidth = @values * $space;
+        $args->{width} = $dwidth + 2*$args->{padx};
     }
     ++$space if $space =~s/\.9\d$//;
+    my $height = $args->{height} - 2*$args->{pady};
     my $wheight = $args->{height}/2;
-
-    my $svg = SVG::Sparkline::Utils::make_svg(
-        width=>$args->{width}, height=>$args->{height},
-        viewBox=> "0 -$wheight $args->{width} $args->{height}",
-    );
-    SVG::Sparkline::Utils::add_bgcolor( $svg, -$wheight, $args );
+    $args->{yoff} = -$wheight;
+    $wheight -= $args->{pady};
+    my $svg = SVG::Sparkline::Utils::make_svg( $args );
 
     my $path = "M$thick,0";
     foreach my $v (@values)
@@ -73,7 +74,50 @@ sub make
     }
     $svg->path( 'stroke-width'=>$thick, stroke=>$args->{color}, d=>$path );
 
+    if( exists $args->{mark} )
+    {
+        _make_marks( $svg,
+           thick=>$thick, space=>$space, wheight=>-$wheight,
+           values=>\@values, mark=>$args->{mark}
+        );
+    }
     return $svg;
+}
+
+sub _make_marks
+{
+    my ($svg, %args) = @_;
+    
+    my @marks = @{$args{mark}};
+    while(@marks)
+    {
+        my ($index,$color) = splice( @marks, 0, 2 );
+        $index = _check_index( $index, $args{values} );
+        _make_mark( $svg, %args, index=>$index, color=>$color );
+    }
+    return;
+}
+
+sub _make_mark
+{
+    my ($svg, %args) = @_;
+    my $index = $args{index};
+    return unless $args{values}->[$index];
+    my $x = $index * $args{space}+$args{thick};
+    $svg->line( x1=>$x, x2=>$x, y1=>0, y2=>$args{wheight} * $args{values}->[$index],
+        'stroke-width'=>$args{thick}, stroke=>$args{color}
+    );
+    return;
+}
+
+sub _check_index
+{
+    my ($index, $values) = @_;
+    return 0 if $index eq 'first';
+    return $#{$values} if $index eq 'last';
+    return $index unless $index =~ /\D/;
+
+    die "'$index' is not a valid mark for Whisker sparkline";
 }
 
 sub _val
@@ -94,7 +138,7 @@ SVG::Sparkline::Whisker - Supports SVG::Sparkline for whisker graphs.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Whisker version 0.2.0
+This document describes SVG::Sparkline::Whisker version 0.2.5
 
 =head1 DESCRIPTION
 

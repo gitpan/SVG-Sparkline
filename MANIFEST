@@ -6,6 +6,7 @@ lib/SVG/Sparkline/Bar.pm
 lib/SVG/Sparkline/Line.pm
 lib/SVG/Sparkline/Utils.pm
 lib/SVG/Sparkline/Whisker.pm
+lib/SVG/Sparkline/Cookbook.pod
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
@@ -24,4 +25,10 @@ t/10.simple_area.t
 t/11.bar_bad_parms.t
 t/12.simple_bar.t
 t/13.bgcolor.t
+t/14.whisker_marks.t
+t/15.bar_marks.t
+t/16.line_marks.t
+t/17.area_marks.t
+t/18.pady.t
+t/19.padx.t
 META.yml                                 Module meta-data (added by MakeMaker)

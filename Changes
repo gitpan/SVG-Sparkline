@@ -1,5 +1,14 @@
 Revision history for SVG-Sparkline
 
+0.2.5  Fri Apr 17 23:45:00 2009
+       Modify the Area, Bar and Line types to handle baselines better.
+       Add support for marks
+       Add overload support for stringifying.
+       Add support for padding the sparkline with the padx and pady
+        parameters
+       Removed '-' from bgcolor parameter.
+0.2.1  Not released
+       Added the Cookbook document to cover basic uses of SVG::Sparkline.
 0.2.0  Sun Apr 5 16:30:00 2009
        Change parameters for Line and Area to use 'values'. Correct horizontal
        scaling on Line and Area charts. Fail if Whisker data contains bad
