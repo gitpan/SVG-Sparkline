@@ -8,7 +8,7 @@ use SVG;
 use overload  '""' => \&to_string;
 
 use 5.008000;
-our $VERSION = '0.2.5';
+our $VERSION = '0.2.6';
 
 sub new
 {
@@ -21,30 +21,34 @@ sub new
     croak "Arguments not supplied as a hash reference.\n" unless 'HASH' eq ref $args;
 
     my $self = bless {
-        height => 12,
-        width => 0,
         -nodecl => 0,
         -allns => 0,
-        pady => 1,
-        padx => 0,
         color => '#000',
         %{$args},
     }, $class;
 
-    $self->{xoff} = -$self->{padx};
+    $self->_validate_pos_param( 'height', 12 );
+    $self->_validate_pos_param( 'width', 0 );
+    $self->_validate_pos_param( 'xscale' );
+    $self->_validate_pos_param( 'yscale' );
+    $self->_validate_nonneg_param( 'pady', 1 );
+    $self->_validate_nonneg_param( 'padx', 0 );
+    $self->_validate_mark_param();
+    foreach my $arg (qw/color bgcolor/)
+    {
+        next unless exists $self->{$arg};
+        croak "The value of $arg is not a valid color.\n"
+            unless _is_color( $self->{$arg} );
+    }
 
+    $self->{xoff} = -$self->{padx};
     $self->_make( $type );
 
     return $self;
 }
 
-sub _make {
-    my ($self, $type) = @_;
-    # Disable strict to allow calling method from plugin.
-    no strict 'refs'; ## no critic (ProhibitNoStrict)
-    $self->{_SVG} = "SVG::Sparkline::$type"->make( $self );
-    return;
-}
+sub get_height { return $_[0]->{height}; }
+sub get_width { return $_[0]->{width}; }
 
 sub to_string
 {
@@ -54,6 +58,71 @@ sub to_string
     $str =~ s/ xmlns:(?:svg|xlink)="[^"]+"//g unless $self->{'-allns'};
     $str =~ s/<\?[^\?]+\?>// if $self->{'-nodecl'};
     return $str;
+}
+
+sub _make
+{
+    my ($self, $type) = @_;
+    # Disable strict to allow calling method from plugin.
+    no strict 'refs'; ## no critic (ProhibitNoStrict)
+    $self->{_SVG} = "SVG::Sparkline::$type"->make( $self );
+    return;
+}
+
+sub _validate_pos_param
+{
+    my ($self, $name, $default) = @_;
+    croak "'$name' must have a positive numeric value.\n"
+        if exists $self->{$name} && $self->{$name} <= 0;
+    return if exists $self->{$name};
+
+    $self->{$name} = $default if defined $default;
+    return;
+}
+
+sub _validate_nonneg_param
+{
+    my ($self, $name, $default) = @_;
+    croak "'$name' must be a non-negative numeric value.\n"
+        if exists $self->{$name} && $self->{$name} < 0;
+    return if exists $self->{$name};
+
+    $self->{$name} = $default if defined $default;
+    return;
+}
+
+sub _validate_mark_param
+{
+    my ($self) = @_;
+
+    return unless exists $self->{mark};
+
+    croak "'mark' parameter must be an array reference.\n"
+        unless 'ARRAY' eq ref $self->{mark};
+    croak "'mark' array parameter must have an even number of elements.\n"
+        unless 0 == (@{$self->{mark}}%2);
+
+    my @marks = @{$self->{mark}};
+    while(@marks)
+    {
+        my ($index, $color) = splice( @marks, 0, 2 );
+        croak "'$index' is not a valid mark index.\n"
+            unless $index =~ /^(?:first|last|high|low|\d+)$/;
+        croak "'$color' is not a valid mark color.\n"
+            unless _is_color( $color );
+    }
+    return;
+}
+
+sub _is_color
+{
+    my ($color) = @_;
+    return 1 if $color =~ /^#[[:xdigit:]]{3}$/;
+    return 1 if $color =~ /^#[[:xdigit:]]{6}$/;
+    return 1 if $color =~ /^rgb\(\d+,\d+,\d+\)$/;
+    return 1 if $color =~ /^rgb\(\d+%,\d+%,\d+%\)$/;
+    return 1 if $color =~ /^[[:alpha:]]+$/;
+    return;
 }
 
 1; # Magic true value required at end of module
@@ -135,20 +204,20 @@ the default SVG namespace is included in the sparkline.
 If the value of the parameter is 1, a namespace is supplied for the prefix
 I<svg> and the prefix I<xlink>.
 
-=item -bgcolor
+=item bgcolor
 
 The value of this parameter is an SVG-supported color string which specifies
 a color for the background of the sparkline. In general, this parameter should
 not be supplied or should be very subtle to avoid taking attention away from
 the actual data displayed.
 
-=item -padx
+=item padx
 
 The value of this parameter is the number of pixels of padding inside the
 sparkline, but to the left of the first data point and right of the last
 data point. 
 
-=item -pady
+=item pady
 
 The value of this parameter is the number of pixels of padding inside the
 sparkline, but above the highest data point and below the lowest data point.
@@ -274,6 +343,12 @@ for this parameter is I<#000> (black).
 The mark for an Area is a vertical line of the specified color. The line moves
 from a value of zero up to the value.
 
+=item xscale
+
+This parameter determines the distance between data points. The C<width>
+parameter overrides the C<xscale> parameter. If no C<width> or C<xscale>
+are supplied, the default value is 2.
+
 =back
 
 =head3 Bar
@@ -289,18 +364,18 @@ The I<values> parameter is required for the I<Bar> sparkline type. The
 value must be a reference to an array of numeric values, specifying the
 height of the corresponding bar.
 
-=item thick
+=item xscale
 
 This optional parameter specifies the thickness of the individual bars on the
 bar graph. This parameter is ignored if the I<width> parameter is specified.
-If neither I<width> or I<thick> are specified, the default value of I<thick>
+If neither I<width> or I<xscale> are specified, the default value of I<xscale>
 is 3.
 
 =item width
 
 This optional parameter specifies the width of the sparkline in pixels. If
 the I<width> is not specified, the width of the sparkline is the value of
-I<thick> times the number of I<values>.
+I<xscale> times the number of I<values>.
 
 =item color
 
@@ -348,6 +423,12 @@ color string. The default value for this parameter is I<#000> (black).
 The mark for Line is a dot of the specified color at the chosen location. The
 radius of the dot is the same as the width of the line, specified by the
 C<thick> parameter.
+
+=item xscale
+
+This parameter determines the distance between data points. The C<width>
+parameter overrides the C<xscale> parameter. If no C<width> or C<xscale>
+are supplied, the default value is 2.
 
 =back
 
@@ -408,6 +489,14 @@ The mark for Whisker replaces the whisker in question with one of the
 specified color.
 
 =back
+
+=head2 get_height
+
+Returns in height in pixels of the completed sparkline.
+
+=head2 get_width
+
+Returns in width in pixels of the completed sparkline.
 
 =head2 to_string
 

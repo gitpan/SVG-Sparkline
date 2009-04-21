@@ -7,7 +7,7 @@ use SVG;
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.2.5';
+our $VERSION = '0.2.6';
 
 # aliases to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
@@ -20,34 +20,19 @@ sub make
     my $valdesc = SVG::Sparkline::Utils::summarize_xy_values( $args->{values} );
 
     my $thick = $args->{thick} || 1;
-    my $dwidth;
-    if( $args->{width} )
-    {
-        $dwidth = $args->{width} - 2*$args->{padx};
-    }
-    else
-    {
-        $dwidth = @{$valdesc->{vals}};
-        $args->{width} = $dwidth + 2*$args->{padx};
-    }
-    my $height = $args->{height} - 2*$args->{pady};
-    my $xscale = ($dwidth-1) / $valdesc->{xrange};
-    my $yscale = -$height / $valdesc->{yrange};
-    my $baseline = _f(-$yscale*$valdesc->{offset});
-
-    $args->{yoff} = -($baseline+$height+$args->{pady});
+    SVG::Sparkline::Utils::calculate_xscale( $args, $valdesc->{xrange} );
+    SVG::Sparkline::Utils::calculate_yscale_and_offset( $args, $valdesc->{yrange}, $valdesc->{offset} );
     my $svg = SVG::Sparkline::Utils::make_svg( $args );
 
-    my $points = join( ' ',
-        map { _f($xscale*$_->[0]) .','. _f($yscale*$_->[1]) }
-        @{$valdesc->{vals}}
+    my $points = SVG::Sparkline::Utils::xypairs_to_points_str(
+        $valdesc->{vals}, $args->{xscale}, $args->{yscale}
     );
-    $svg->polyline( fill=>'none', 'stroke-width'=>$thick, stroke=>$args->{color}, points=>$points );
+    $svg->polyline( fill=>'none', 'stroke-width'=>$thick, stroke=>$args->{color}, 'stroke-linecap'=>'round', points=>$points );
 
     if( exists $args->{mark} )
     {
         _make_marks( $svg,
-            thick=>$thick, xscale=>$xscale, yscale=>$yscale,
+            thick=>$thick, xscale=>$args->{xscale}, yscale=>$args->{yscale},
             values=>$valdesc->{vals}, mark=>$args->{mark}
         );
     }
