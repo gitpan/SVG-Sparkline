@@ -4,10 +4,11 @@ use warnings;
 use strict;
 use Carp;
 use SVG;
+use List::Util ();
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.2.6';
+our $VERSION = '0.2.7';
 
 # alias to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
@@ -25,37 +26,50 @@ sub make
 
     # Figure out the width I want and define the viewBox
     my $dwidth;
+    my $gap = $args->{gap} || 0;
+    $args->{thick} ||= 3;
+    my $space = $args->{thick}+$gap;
     if($args->{width})
     {
         $dwidth = $args->{width} - $args->{padx}*2;
-        $args->{xscale} = _f( $dwidth / @{$args->{values}} );
+        $space = _f( $dwidth / @{$args->{values}} );
+        $args->{thick} = $space - $gap;
     }
     else
     {
-        $args->{xscale} ||= 3;
-        $dwidth = @{$args->{values}} * $args->{xscale};
+        $dwidth = @{$args->{values}} * $space;
         $args->{width} = $dwidth + 2*$args->{padx}; 
     }
     $args->{yoff} = -($baseline+$height+$args->{pady});
+    $args->{xscale} = $space;
     my $svg = SVG::Sparkline::Utils::make_svg( $args );
 
+    my $off = _f( $gap/2 );
     my $prev = 0;
-    my $path = "M0,0";
+    my @pieces;
     foreach my $v (@{$args->{values}})
     {
         my $curr = _f( $yscale*($v-$prev) );
-        $path .= "v$curr" if $curr;
-        $path .= "h$args->{xscale}";
+        my $subpath = $curr ? "v${curr}h$args->{thick}" : "h$args->{thick}";
         $prev = $v;
+        if($gap && $curr)
+        {
+            $subpath .= 'v' . _f(-$curr);
+            $prev = 0;
+        }
+        push @pieces, $subpath;
     }
-    $path .= 'v' . _f( $yscale*(-$prev) ) if $prev;
-    $path .= 'z';
+    push @pieces, 'v' . _f( $yscale*(-$prev) ) if $prev;
+    my $spacer = $gap ? "h$gap" : '';
+    my $path = "M$off,0" . join( $spacer, @pieces ) . 'z';
+    $path = _clean_path( $path );
     $svg->path( stroke=>'none', fill=>$args->{color}, d=>$path );
 
     if( exists $args->{mark} )
     {
         _make_marks( $svg,
-            thick=>$args->{xscale}, yscale=>$yscale,
+            thick=>$args->{thick}, off=>$off,
+            space=>$space, yscale=>$yscale,
             values=>$args->{values}, mark=>$args->{mark}
         );
     }
@@ -81,13 +95,22 @@ sub _make_mark
     my ($svg, %args) = @_;
     my $index = $args{index};
     my $h = _f($args{values}->[$index] * $args{yscale});
-    return unless $h;
-    my $x = _f($index * $args{thick});
-    my $y = $h > 0 ? 0 : $h;
-    $svg->rect( x=>$x, y=>$y,
-        width=>$args{thick}, height=>abs($h),
-        stroke=>'none', fill=>$args{color}
-    );
+    if($h)
+    {
+        my $x = _f($index * $args{space} + $args{off});
+        my $y = $h > 0 ? 0 : $h;
+        $svg->rect( x=>$x, y=>$y,
+            width=>$args{thick}, height=>abs( $h ),
+            stroke=>'none', fill=>$args{color}
+        );
+    }
+    else
+    {
+        my $x = _f(($index+0.5) * $args{space} +$args{off});
+        $svg->ellipse( cx=>$x, cy=>0, ry=>0.5, rx=>$args{thick}/2,
+            stroke=>'none', fill=>$args{color}
+        );
+    }
     return;
 }
 
@@ -96,6 +119,21 @@ sub _check_index
     return SVG::Sparkline::Utils::mark_to_index( 'Bar', @_ );
 }
 
+sub _clean_path
+{
+    my ($path) = @_;
+    $path =~ s!((?:h[\d.]+){2,})!_consolidate_moves( $1 )!eg;
+    $path =~ s/h0(?![.\d])//g;
+    return $path;
+}
+
+sub _consolidate_moves
+{
+    my ($moves) = @_;
+    my @steps = split /h/, $moves;
+    shift @steps; # discard empty initial string
+    return 'h' . _f( List::Util::sum( @steps ) );
+}
 
 1; # Magic true value required at end of module
 __END__

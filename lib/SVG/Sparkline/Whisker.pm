@@ -7,7 +7,7 @@ use SVG;
 use SVG::Sparkline::Utils;
 
 use 5.008000;
-our $VERSION = '0.2.5';
+our $VERSION = '0.2.7';
 
 # alias to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
@@ -39,12 +39,14 @@ sub make
 
     # Figure out the width I want and define the viewBox
     my $thick = $args->{thick} || 1;
-    my $space = 3*$thick;
+    my $gap   = $args->{gap} || 2 * $thick;
+    my $space = $thick + $gap;
     my $dwidth;
     if($args->{width})
     {
         $dwidth = $args->{width} - 2*$args->{padx};
         $thick = _f( $dwidth / (3*@values) );
+        $gap   = _f( 2* $thick );
         $space = 3*$thick;
     }
     else
@@ -59,8 +61,9 @@ sub make
     $wheight -= $args->{pady};
     my $svg = SVG::Sparkline::Utils::make_svg( $args );
 
-    my $path = "M$thick,0";
-    foreach my $v (@values)
+    my $off = _f( $gap/2 );
+    my $path = "M$off,0";
+    foreach my $v (@values[0..$#values-1])
     {
         if( $v )
         {
@@ -72,12 +75,14 @@ sub make
             $path .= "m$space,0";
         }
     }
+    $path .= 'v' . (-$values[-1]*$wheight);
+    $path = _clean_path( $path );
     $svg->path( 'stroke-width'=>$thick, stroke=>$args->{color}, d=>$path );
 
     if( exists $args->{mark} )
     {
         _make_marks( $svg,
-           thick=>$thick, space=>$space, wheight=>-$wheight,
+           thick=>$thick, off=>$off, space=>$space, wheight=>-$wheight,
            values=>\@values, mark=>$args->{mark}
         );
     }
@@ -103,7 +108,7 @@ sub _make_mark
     my ($svg, %args) = @_;
     my $index = $args{index};
     return unless $args{values}->[$index];
-    my $x = $index * $args{space}+$args{thick};
+    my $x = $index * $args{space}+$args{off};
     $svg->line( x1=>$x, x2=>$x, y1=>0, y2=>$args{wheight} * $args{values}->[$index],
         'stroke-width'=>$args{thick}, stroke=>$args{color}
     );
@@ -128,6 +133,32 @@ sub _val
     return $val eq '+' ? 1 : ( $val eq '-' ? -1 : die "Unrecognized character '$val'\n" );
 }
 
+sub _clean_path
+{
+    my ($path) = @_;
+    $path =~ s/((?:m[-.\d]+,[-.\d+]+){2,})/_consolidate_moves( $1 )/eg;
+    # Consolidate initial M with m
+    $path =~ s/^M([-.\d]+),([-.\d]+)m([-.\d]+),([-.\d]+)/'M'. _f($1+$3) .','. _f($2+$4)/e;
+    $path =~ s/m[-.\d]+,[-.\d]+$//; # remove trailing move.
+    $path =~ s/m0,0(?![.\d])//;
+    return $path;
+}
+
+sub _consolidate_moves
+{
+    my ($moves) = @_;
+    my @coords = split /[m,]/, $moves;
+    shift @coords; # dump empty initial string.
+    my ($x,$y);
+    while(@coords)
+    {
+        my ($lx, $ly) = splice @coords, 0, 2;
+        $x += $lx;
+        $y += $ly;
+    }
+
+    return ($x||$y) ? 'm' . _f($x).',' . _f($y) : '';
+}
 
 1; # Magic true value required at end of module
 __END__
