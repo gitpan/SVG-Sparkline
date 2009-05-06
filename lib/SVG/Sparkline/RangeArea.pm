@@ -1,16 +1,15 @@
-package SVG::Sparkline::Bar;
+package SVG::Sparkline::RangeArea;
 
 use warnings;
 use strict;
 use Carp;
 use SVG;
-use List::Util ();
 use SVG::Sparkline::Utils;
 
 use 5.008000;
 our $VERSION = 0.30;
 
-# alias to make calling shorter.
+# aliases to make calling shorter.
 *_f = *SVG::Sparkline::Utils::format_f;
 
 sub make
@@ -18,61 +17,37 @@ sub make
     my ($class, $args) = @_;
     # validate parameters
     SVG::Sparkline::Utils::validate_array_param( $args, 'values' );
-    my $vals = SVG::Sparkline::Utils::summarize_values( $args->{values} );
-
-    my $height = $args->{height} - 2*$args->{pady};
-    my $yscale = -$height / $vals->{range};
-    my $baseline = _f(-$yscale*$vals->{min});
-
-    # Figure out the width I want and define the viewBox
-    my $dwidth;
-    my $gap = $args->{gap} || 0;
-    $args->{thick} ||= 3;
-    my $space = $args->{thick}+$gap;
-    if($args->{width})
+    croak "'values' must be an array of pairs.\n"
+        if grep { 'ARRAY' ne ref $_ || 2 != @{$_} } @{$args->{values}};
+    my $valdesc = SVG::Sparkline::Utils::summarize_xy_values(
+        [ (map { $_->[0] } @{$args->{values}}), (reverse map { $_->[1] } @{$args->{values}}) ]
+    );
+    $valdesc->{xrange} = $#{$args->{values}};
+    $valdesc->{xmax} = $#{$args->{values}};
+    my $off = $valdesc->{xrange};
+    foreach my $v (@{$valdesc->{vals}}[($off+1) .. $#{$valdesc->{vals}}])
     {
-        $dwidth = $args->{width} - $args->{padx}*2;
-        $space = _f( $dwidth / @{$args->{values}} );
-        $args->{thick} = $space - $gap;
+        $v->[0] = $off--;
     }
-    else
-    {
-        $dwidth = @{$args->{values}} * $space;
-        $args->{width} = $dwidth + 2*$args->{padx}; 
-    }
-    $args->{yoff} = -($baseline+$height+$args->{pady});
-    $args->{xscale} = $space;
+
+    SVG::Sparkline::Utils::calculate_xscale( $args, $valdesc->{xrange} );
+    SVG::Sparkline::Utils::calculate_yscale_and_offset( $args, $valdesc->{yrange}, $valdesc->{offset} );
     my $svg = SVG::Sparkline::Utils::make_svg( $args );
 
-    my $off = _f( $gap/2 );
-    my $prev = 0;
-    my @pieces;
-    foreach my $v (@{$args->{values}})
-    {
-        my $curr = _f( $yscale*($v-$prev) );
-        my $subpath = $curr ? "v${curr}h$args->{thick}" : "h$args->{thick}";
-        $prev = $v;
-        if($gap && $curr)
-        {
-            $subpath .= 'v' . _f(-$curr);
-            $prev = 0;
-        }
-        push @pieces, $subpath;
-    }
-    push @pieces, 'v' . _f( $yscale*(-$prev) ) if $prev;
-    my $spacer = $gap ? "h$gap" : '';
-    my $path = "M$off,0" . join( $spacer, @pieces ) . 'z';
-    $path = _clean_path( $path );
-    $svg->path( stroke=>'none', fill=>$args->{color}, d=>$path );
+    my $points = SVG::Sparkline::Utils::xypairs_to_points_str(
+        $valdesc->{vals}, $args->{xscale}, $args->{yscale}
+    );
+    $svg->polygon( fill=>$args->{color}, points=>$points, stroke=>'none' );
 
     if( exists $args->{mark} )
     {
         _make_marks( $svg,
-            thick=>$args->{thick}, off=>$off,
-            space=>$space, yscale=>$yscale,
-            values=>$args->{values}, mark=>$args->{mark}
+            xscale=>$args->{xscale}, yscale=>$args->{yscale},
+            values=>$args->{values}, mark=>$args->{mark},
+            base=>$valdesc->{base}
         );
     }
+
     return $svg;
 }
 
@@ -84,7 +59,7 @@ sub _make_marks
     while(@marks)
     {
         my ($index,$color) = splice( @marks, 0, 2 );
-        $index = _check_index( $index, $args{values} );
+        $index = SVG::Sparkline::Utils::range_mark_to_index( 'RangeArea', $index, $args{values} );
         _make_mark( $svg, %args, index=>$index, color=>$color );
     }
     return;
@@ -94,45 +69,22 @@ sub _make_mark
 {
     my ($svg, %args) = @_;
     my $index = $args{index};
-    my $h = _f($args{values}->[$index] * $args{yscale});
-    if($h)
+    my ($lo, $hi) = @{$args{values}->[$index]};
+    my $y = _f( ($lo-$args{base}) * $args{yscale} );
+    my $yh = _f( ($hi-$args{base}) * $args{yscale} );
+    my $x = _f($index * $args{xscale});
+
+    if(abs($hi-$lo) <= 0.01)
     {
-        my $x = _f($index * $args{space} + $args{off});
-        my $y = $h > 0 ? 0 : $h;
-        $svg->rect( x=>$x, y=>$y,
-            width=>$args{thick}, height=>abs( $h ),
-            stroke=>'none', fill=>$args{color}
-        );
+        $svg->circle( cx=>$x, cy=>$y, r=>1, fill=>$args{color}, stroke=>'none' );
     }
     else
     {
-        my $x = _f(($index+0.5) * $args{space} +$args{off});
-        $svg->ellipse( cx=>$x, cy=>0, ry=>0.5, rx=>$args{thick}/2,
-            stroke=>'none', fill=>$args{color}
+        $svg->line( x1=>$x, y1=>$y, x2=>$x, y2=>$yh,
+            fill=>'none', stroke=>$args{color}, 'stroke-width'=>1
         );
     }
     return;
-}
-
-sub _check_index
-{
-    return SVG::Sparkline::Utils::mark_to_index( 'Bar', @_ );
-}
-
-sub _clean_path
-{
-    my ($path) = @_;
-    $path =~ s!((?:h[\d.]+){2,})!_consolidate_moves( $1 )!eg;
-    $path =~ s/h0(?![.\d])//g;
-    return $path;
-}
-
-sub _consolidate_moves
-{
-    my ($moves) = @_;
-    my @steps = split /h/, $moves;
-    shift @steps; # discard empty initial string
-    return 'h' . _f( List::Util::sum( @steps ) );
 }
 
 1; # Magic true value required at end of module
@@ -140,22 +92,22 @@ __END__
 
 =head1 NAME
 
-SVG::Sparkline::Bar - Supports SVG::Sparkline for bar graphs.
+SVG::Sparkline::Area - Supports SVG::Sparkline for area graphs.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Bar version 0.30
+This document describes SVG::Sparkline::Area version 0.30
 
 =head1 DESCRIPTION
 
 Not used directly. This module provides a factory interface to build
-a 'Bar' sparkline. It is loaded on demand by L<SVG::Sparkline>.
+a 'RangeArea' sparkline. It is loaded on demand by L<SVG::Sparkline>.
 
 =head1 INTERFACE 
 
 =head2 make
 
-Create an L<SVG> object that represents the Bar style of Sparkline.
+Create an L<SVG> object that represents the RangeArea style of Sparkline.
 
 =head1 DIAGNOSTICS
 
@@ -173,11 +125,16 @@ The named parameter was not an array reference.
 
 The supplied array has no values.
 
+=item C<< Count of 'x' and 'y' values must match. >>
+
+The two arrays have different numbers of values.
+
 =back
+
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-SVG::Sparkline::Bar requires no configuration files or environment variables.
+SVG::Sparkline::Line requires no configuration files or environment variables.
 
 =head1 DEPENDENCIES
 

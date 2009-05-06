@@ -1,4 +1,4 @@
-package SVG::Sparkline::Bar;
+package SVG::Sparkline::RangeBar;
 
 use warnings;
 use strict;
@@ -18,7 +18,11 @@ sub make
     my ($class, $args) = @_;
     # validate parameters
     SVG::Sparkline::Utils::validate_array_param( $args, 'values' );
-    my $vals = SVG::Sparkline::Utils::summarize_values( $args->{values} );
+    croak "'values' must be an array of pairs.\n"
+        if grep { 'ARRAY' ne ref $_ || 2 != @{$_} } @{$args->{values}};
+    my $vals = SVG::Sparkline::Utils::summarize_values(
+        [ map { @{$_} } @{$args->{values}} ]
+    );
 
     my $height = $args->{height} - 2*$args->{pady};
     my $yscale = -$height / $vals->{range};
@@ -46,22 +50,22 @@ sub make
 
     my $off = _f( $gap/2 );
     my $prev = 0;
-    my @pieces;
+    my $path = "M". _f(-$args->{thick}-$off).",0";
     foreach my $v (@{$args->{values}})
     {
-        my $curr = _f( $yscale*($v-$prev) );
-        my $subpath = $curr ? "v${curr}h$args->{thick}" : "h$args->{thick}";
-        $prev = $v;
-        if($gap && $curr)
+        # Move from previous x,y to low value
+        $path .= 'm'. _f($args->{thick}+$gap) .','. _f($yscale*($v->[0]-$prev));
+        my $vert = _f( $yscale * ($v->[1]-$v->[0]) );
+        if($vert)
         {
-            $subpath .= 'v' . _f(-$curr);
-            $prev = 0;
+            $path .= "v${vert}h$args->{thick}v". _f(-$vert)."h-$args->{thick}";
         }
-        push @pieces, $subpath;
+        else
+        {
+            $path .= _zero_height_path( $args->{thick} );
+        }
+        $prev = $v->[0];
     }
-    push @pieces, 'v' . _f( $yscale*(-$prev) ) if $prev;
-    my $spacer = $gap ? "h$gap" : '';
-    my $path = "M$off,0" . join( $spacer, @pieces ) . 'z';
     $path = _clean_path( $path );
     $svg->path( stroke=>'none', fill=>$args->{color}, d=>$path );
 
@@ -76,6 +80,23 @@ sub make
     return $svg;
 }
 
+sub _zero_height_path
+{
+    my ($thick) = @_;
+    my $path = 'v-0.5';
+    my $step = 1;
+    $step = $thick/4 if $thick <= 2;
+    $step = 2 if $thick >= 8;
+    my $num_steps = int( $thick/$step ) - 1;
+    my $leftover = $thick-($num_steps*$step);
+    foreach my $i (1 .. $num_steps)
+    {
+        $path .= "h${step}v" . ($i%2? 1 :-1);
+    }
+    $path .= "h${leftover}v". ($thick%2?0.5: -0.5) . "h-$thick";
+    return $path;
+}
+
 sub _make_marks
 {
     my ($svg, %args) = @_;
@@ -84,7 +105,7 @@ sub _make_marks
     while(@marks)
     {
         my ($index,$color) = splice( @marks, 0, 2 );
-        $index = _check_index( $index, $args{values} );
+        $index = SVG::Sparkline::Utils::range_mark_to_index( 'RangeBar', $index, $args{values} );
         _make_mark( $svg, %args, index=>$index, color=>$color );
     }
     return;
@@ -94,45 +115,34 @@ sub _make_mark
 {
     my ($svg, %args) = @_;
     my $index = $args{index};
-    my $h = _f($args{values}->[$index] * $args{yscale});
+    my ($lo, $hi) = @{$args{values}->[$index]};
+    my $y = _f( $hi * $args{yscale} );
+    my $h = _f( ($hi-$lo) * $args{yscale});
     if($h)
     {
         my $x = _f($index * $args{space} + $args{off});
-        my $y = $h > 0 ? 0 : $h;
         $svg->rect( x=>$x, y=>$y,
-            width=>$args{thick}, height=>abs( $h ),
+            width=>$args{thick}, height=>abs($h),
             stroke=>'none', fill=>$args{color}
         );
     }
     else
     {
-        my $x = _f(($index+0.5) * $args{space} +$args{off});
-        $svg->ellipse( cx=>$x, cy=>0, ry=>0.5, rx=>$args{thick}/2,
+        my $x = _f($index * $args{space} +$args{off});
+        $svg->path(
+            d=>"M$x,$y". _zero_height_path( $args{thick} ),
             stroke=>'none', fill=>$args{color}
         );
     }
     return;
 }
 
-sub _check_index
-{
-    return SVG::Sparkline::Utils::mark_to_index( 'Bar', @_ );
-}
-
 sub _clean_path
 {
     my ($path) = @_;
-    $path =~ s!((?:h[\d.]+){2,})!_consolidate_moves( $1 )!eg;
+    $path =~ s/^M([-.\d]+),([-.\d]+)m([-.\d]+),([-.\d]+)/'M'. _f($1+$3) .','. _f($2+$4)/e;
     $path =~ s/h0(?![.\d])//g;
     return $path;
-}
-
-sub _consolidate_moves
-{
-    my ($moves) = @_;
-    my @steps = split /h/, $moves;
-    shift @steps; # discard empty initial string
-    return 'h' . _f( List::Util::sum( @steps ) );
 }
 
 1; # Magic true value required at end of module
@@ -140,22 +150,22 @@ __END__
 
 =head1 NAME
 
-SVG::Sparkline::Bar - Supports SVG::Sparkline for bar graphs.
+SVG::Sparkline::RangeBar - Supports SVG::Sparkline for range bar graphs.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Bar version 0.30
+This document describes SVG::Sparkline::RangeBar version 0.30
 
 =head1 DESCRIPTION
 
 Not used directly. This module provides a factory interface to build
-a 'Bar' sparkline. It is loaded on demand by L<SVG::Sparkline>.
+a 'RangeBar' sparkline. It is loaded on demand by L<SVG::Sparkline>.
 
 =head1 INTERFACE 
 
 =head2 make
 
-Create an L<SVG> object that represents the Bar style of Sparkline.
+Create an L<SVG> object that represents the RangeBar style of Sparkline.
 
 =head1 DIAGNOSTICS
 
@@ -177,7 +187,7 @@ The supplied array has no values.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-SVG::Sparkline::Bar requires no configuration files or environment variables.
+SVG::Sparkline::RangeBar requires no configuration files or environment variables.
 
 =head1 DEPENDENCIES
 

@@ -3,10 +3,13 @@ Changes
 lib/SVG/Sparkline.pm
 lib/SVG/Sparkline/Area.pm
 lib/SVG/Sparkline/Bar.pm
+lib/SVG/Sparkline/Cookbook.pod
 lib/SVG/Sparkline/Line.pm
+lib/SVG/Sparkline/Manual.pod
+lib/SVG/Sparkline/RangeArea.pm
+lib/SVG/Sparkline/RangeBar.pm
 lib/SVG/Sparkline/Utils.pm
 lib/SVG/Sparkline/Whisker.pm
-lib/SVG/Sparkline/Cookbook.pod
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
@@ -35,4 +38,15 @@ t/20.xscale.t
 t/21.gap.t
 t/22.gap_and_mark.t
 t/23.thick.t
+t/24.rangebar_bad_params.t
+t/25.rangebar.t
+t/26.rangebar_marks.t
+t/27.rangearea_bad_params.t
+t/28.rangearea.t
+t/29.rangearea_marks.t
+t/99.private_bar_clean_path.t
+t/99.private_is_color.t
+t/99.private_whisker_clean_path.t
+t/pod-coverage.t
+t/pod.t
 META.yml                                 Module meta-data (added by MakeMaker)
