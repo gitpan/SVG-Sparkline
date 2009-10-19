@@ -1,10 +1,10 @@
 =head1 NAME
 
-SVG::Sparkline - Create Sparklines in SVG
+SVG::Sparkline::Manual - Documentation for the SVG::Sparkline module
 
 =head1 VERSION
 
-This document describes SVG::Sparkline version 0.30
+This document describes SVG::Sparkline version 0.32
 
 =head1 SYNOPSIS
 
@@ -37,7 +37,7 @@ focus here is on the kinds of data well-suited to the sparklines concept.
 
 Although the basics are there, this module is not yet feature complete.
 
-=head1 INTERFACE 
+=head1 LIBRARY INTERFACE 
 
 =head2 SVG::Sparkline->new( $type, $args_hr )
 
@@ -77,6 +77,15 @@ the default SVG namespace is included in the sparkline.
 
 If the value of the parameter is 1, a namespace is supplied for the prefix
 I<svg> and the prefix I<xlink>.
+
+=item -sized
+
+The value of this parameter is a boolean that specifies whether the generated
+sparkline should contain C<width> and C<height> attributes on the root element.
+
+A value of 1 causes them to be added, while 0 leaves them off. The default
+value of this parameter is 1. (Although that may change in future versions.
+Add the parameter if you want to be future-proof.)
 
 =item bgcolor
 
@@ -489,6 +498,10 @@ specified color.
 
 =back
 
+=head1 PUBLIC METHODS
+
+The following public methods are provided on the C<SVG::Sparkline> object.
+
 =head2 get_height
 
 Returns in height in pixels of the completed sparkline.
@@ -502,10 +515,26 @@ Returns in width in pixels of the completed sparkline.
 Convert the L<SVG::Sparkline> object to an XML string. This is the method that
 is used by the stringification overload.
 
+=head1 PROGRAMS
+
+The library also supplies two programs that simplies the creation of sparklines
+without programming. The command-line tool C<sparkline.pl> is documented in
+the program itself. The documentation is displayed when executing the program
+with the C<--help> parameter.
+
+The CGI script is documented in L<SVG::Sparkline::Manual::CGI>.
+
 =head1 ACKNOWLEDGEMENTS
 
 This module has been greatly improved by suggestions and corrections supplied
 but Robert Boone, Debbie Campbell, and Joshua Keroes.
+
+Thanks to Helder Magalhães for the suggestion to remove the I<height> and
+I<width> attributes from the root I<svg> element. This lead to the definition
+of the I<-sized> parameter.
+
+Thanks to Jeff Schiller for the idea of the sparklines.cgi script. Honestly,
+I would not have thought to provide it (since it's not hard to build).
 
 =head1 AUTHOR
 
@@ -516,7 +545,7 @@ G. Wade Johnson  C<< <wade@anomaly.org> >>
 Copyright (c) 2009, G. Wade Johnson C<< <wade@anomaly.org> >>. All rights reserved.
 
 This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
+modify it under the same terms as Perl 5.8.0. See L<perlartistic>.
 
 =head1 DISCLAIMER OF WARRANTY
 

@@ -8,7 +8,7 @@ use SVG;
 use overload  '""' => \&to_string;
 
 use 5.008000;
-our $VERSION = 0.31;
+our $VERSION = 0.32;
 
 sub new
 {
@@ -19,11 +19,13 @@ sub new
     croak "Unrecognized Sparkline type '$type'.\n" if $@;
     croak "Missing arguments hash.\n" unless defined $args;
     croak "Arguments not supplied as a hash reference.\n" unless 'HASH' eq ref $args;
+    # TODO : Add logic to look for unknown parameters and bail.
 
     my $self = bless {
         -nodecl => 0,
         -allns => 0,
         color => '#000',
+        -sized => 1,
         %{$args},
     }, $class;
 
@@ -57,6 +59,13 @@ sub to_string
     # Cleanup
     $str =~ s/ xmlns:(?:svg|xlink)="[^"]+"//g unless $self->{'-allns'};
     $str =~ s/<\?[^\?]+\?>// if $self->{'-nodecl'};
+    unless( $self->{'-sized'} )
+    {
+        # If I try to keep them from being created, default '100%' values
+        # show up instead.
+        $str =~ s/(<svg[^>]*) height="[^"]+"/$1/;
+        $str =~ s/(<svg[^>]*) width="[^"]+"/$1/;
+    }
     return $str;
 }
 
@@ -132,10 +141,9 @@ __END__
 
 SVG::Sparkline - Create Sparklines in SVG
 
-
 =head1 VERSION
 
-This document describes SVG::Sparkline version 0.30
+This document describes SVG::Sparkline version 0.32
 
 =head1 SYNOPSIS
 
@@ -229,7 +237,7 @@ G. Wade Johnson  C<< <wade@anomaly.org> >>
 Copyright (c) 2009, G. Wade Johnson C<< <wade@anomaly.org> >>. All rights reserved.
 
 This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
+modify it under the same terms as Perl 5.8.0. See L<perlartistic>.
 
 =head1 DISCLAIMER OF WARRANTY
 

@@ -6,7 +6,7 @@ use Carp;
 use List::Util;
 use SVG;
 
-our $VERSION = 0.30;
+our $VERSION = 0.32;
 
 sub format_f
 {
@@ -182,7 +182,7 @@ sub range_mark_to_index
         return $ndx;
     }
 
-    die "'$index' is not a valid mark for $type sparkline";
+    croak "'$index' is not a valid mark for $type sparkline";
 }
 
 sub mark_to_index
@@ -212,7 +212,7 @@ sub mark_to_index
         return $ndx;
     }
 
-    die "'$index' is not a valid mark for $type sparkline";
+    croak "'$index' is not a valid mark for $type sparkline";
 }
 
 
@@ -225,7 +225,7 @@ SVG::Sparkline::Utils - Utility functions used by the sparkline type modules.
 
 =head1 VERSION
 
-This document describes SVG::Sparkline::Utils version 0.30
+This document describes SVG::Sparkline::Utils version 0.32
 
 =head1 DESCRIPTION
 
@@ -327,7 +327,7 @@ G. Wade Johnson  C<< wade@anomaly.org >>
 Copyright (c) 2009, G. Wade Johnson C<< wade@anomaly.org >>. All rights reserved.
 
 This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself. See L<perlartistic>.
+modify it under the same terms as Perl 5.8.0. See L<perlartistic>.
 
 =head1 DISCLAIMER OF WARRANTY
 

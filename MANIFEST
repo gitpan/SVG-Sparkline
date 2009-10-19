@@ -6,10 +6,13 @@ lib/SVG/Sparkline/Bar.pm
 lib/SVG/Sparkline/Cookbook.pod
 lib/SVG/Sparkline/Line.pm
 lib/SVG/Sparkline/Manual.pod
+lib/SVG/Sparkline/Manual/CGI.pod
 lib/SVG/Sparkline/RangeArea.pm
 lib/SVG/Sparkline/RangeBar.pm
 lib/SVG/Sparkline/Utils.pm
 lib/SVG/Sparkline/Whisker.pm
+bin/sparkline.pl
+bin/sparkline.cgi
 Makefile.PL
 MANIFEST
 MANIFEST.SKIP
