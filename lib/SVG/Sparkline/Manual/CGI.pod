@@ -2,11 +2,9 @@
 
 sparkline.cgi - CGI script for generating SVG-based sparklines
 
-
 =head1 VERSION
 
-This document describes sparkline.cgi version 0.32
-
+This document describes sparkline.cgi version 0.33
 
 =head1 SYNOPSIS
 
@@ -17,6 +15,17 @@ This document describes sparkline.cgi version 0.32
 Since SVG sparklines are useful for display on the web, this CGI script supports
 creating sparklines on the fly. The CGI returns an SVG file representing the
 sparkline based on the supplied parameters.
+
+=head1 REFERENCING THE SPARKLINE
+
+In theory, you would be able to reference the sparkline call in an HTML C<img>
+tag to display it. Unfortunately, browser support for SVG in the C<img> tag is
+currently inconsistent. You can work around this by using the C<object> tag. For
+example, to render a Line sparkline in an HTML page, you might use the following:
+
+    <object type="image/svg+xml" height="12"
+        data="http://anomaly.org/cgi-bin/sparkline.cgi?type=Line&sized=0&nodecl=1&color=blue&values=10,12,9,11,14,17,20,15,13,8,5,9,13&mark=3:green&mark=high:%23f66&mark=last:%23000&thick=2&padx=4">
+    </object>
 
 =head1 QUERY PARAMETERS
 
@@ -125,6 +134,17 @@ Whisker sparkline.
 
 =back
 
+=head1 ON COLORS
+
+When specifying colors for any part of a sparkline, you can use any of the color
+formats allowed by the SVG recommendation. However, the hexadecimal form poses a
+problem when used with a CGI script. The C<#> preceding the hexadecimal string
+must be URL-encoded as C<%23>, otherwise it truncates the URL.
+
+With that caveat, the all color forms listed in
+L<SVG::Sparkline::Cookbook/"How do I specify a color for the data, background, or marks?">
+are supported.
+
 =head1 DIAGNOSTICS
 
 The error messages that this script can generate are documented in the
@@ -136,6 +156,23 @@ of 400. The error message is returned as HTML content.
 Although it should be obvious, it is important that the modules that this
 script depends on are available to the webserver and user the CGI will be
 run as. Otherwise, the program will not execute.
+
+=head1 HOSTED ENVIRONMENT
+
+If you need to run the script in a hosted environment, you may not be able to
+install the dependencies normally. The recommended approach is the use the
+L<local::lib> module to configure a local Perl directory for modules the host
+admin won't or can't install.
+
+Follow the directions in the L<local::Lib> module. Then install L<SVG> and
+L<SVG::Sparkline> to the local perl directories. Then add the following lines
+to your copy of C<sparkline.cgi> before the other libraries.
+
+   use lib '/home/example/perl5/lib/perl5';
+   use local::lib;
+
+Obviously, you will need to replace I</home/example/perl5> with the path created
+by the L<local::lib> bootstrap process.
 
 =head1 DEPENDENCIES
 
