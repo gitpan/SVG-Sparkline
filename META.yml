@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               SVG-Sparkline
-version:            0.33
+version:            0.34
 abstract:           Create Sparklines in SVG
 author:
     - G. Wade Johnson <wade@anomaly.org>
@@ -14,7 +14,7 @@ requires:
     Carp:          0
     Getopt::Long:  0
     Pod::Usage:    0
-    SVG:           2.49
+    SVG:           2.5
     Test::More:    0
 no_index:
     directory:
