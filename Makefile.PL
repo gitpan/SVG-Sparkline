@@ -19,4 +19,19 @@ WriteMakefile(
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'SVG-Sparkline-*' },
+    META_MERGE  => {
+        recommends => {
+#            'Test::Pod::Coverage' => 1.04,
+        },
+        build_requires => {
+            'Test::More' => 0,  # For testing
+        },
+        resources => {
+            license => 'http://dev.perl.org/licenses/',
+            homepage => 'http://wiki.github.com/gwadej/svg-sparkline',
+            bugtracker => 'https://rt.cpan.org/Public/Dist/Display.html?Name=SVG-Sparkline',
+            repository => 'https://github.com/gwadej/svg-sparkline',
+#            MailingList => 'http://groups.google.com/group/svg-sparkline',
+        },
+    },
 );
