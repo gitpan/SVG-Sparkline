@@ -51,4 +51,5 @@ t/99.private_is_color.t
 t/99.private_whisker_clean_path.t
 xt/pod-coverage.t
 xt/pod.t
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)

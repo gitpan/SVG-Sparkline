@@ -1,33 +1,33 @@
---- #YAML:1.0
-name:               SVG-Sparkline
-version:            0.36
-abstract:           Create Sparklines in SVG
+---
+abstract: 'Create Sparklines in SVG'
 author:
-    - G. Wade Johnson <wade@anomaly.org>
-license:            perl
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'G. Wade Johnson <gwadej@cpan.org>'
 build_requires:
-    ExtUtils::MakeMaker:  0
-    Test::More:           0
-requires:
-    Carp:          0
-    Getopt::Long:  0
-    Pod::Usage:    0
-    SVG:           2.5
-    Test::More:    0
-resources:
-    bugtracker:  https://rt.cpan.org/Public/Dist/Display.html?Name=SVG-Sparkline
-    homepage:    http://wiki.github.com/gwadej/svg-sparkline
-    license:     http://dev.perl.org/licenses/
-    repository:  https://github.com/gwadej/svg-sparkline
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.57_05
+  ExtUtils::MakeMaker: 0
+  Test::More: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.66, CPAN::Meta::Converter version 2.112621'
+license: perl
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
-recommends:  {}
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: SVG-Sparkline
+no_index:
+  directory:
+    - t
+    - inc
+recommends: {}
+requires:
+  Carp: 0
+  Getopt::Long: 0
+  Pod::Usage: 0
+  SVG: 2.5
+  Test::More: 0
+resources:
+  bugtracker: https://rt.cpan.org/Public/Dist/Display.html?Name=SVG-Sparkline
+  homepage: http://wiki.github.com/gwadej/svg-sparkline
+  license: http://dev.perl.org/licenses/
+  repository: https://github.com/gwadej/svg-sparkline
+version: 1
